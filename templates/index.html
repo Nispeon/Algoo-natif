@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Algoo Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<body>
+<header class="bg-dark py-5">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="text-center text-white">
+            <h1 class="display-4 fw-bolder lead">Algoo</h1>
+            <p class="lead fw-normal text-white-50 mb-0">Alors, on mange où ?</p>
+        </div>
+    </div>
+</header>
+<section class="py-5 container">
+    <div class="row justify-content-center">
+        <div class="col col-6">
+            <form id="form">
+                <div class="form-group pb-3">
+                    <label for="roomName">Nom de la room</label>
+                    <input type="text" class="form-control" id="roomName" placeholder="Nom de room">
+                </div>
+                <div class="form-group pb-3">
+                    <label for="roomName">Room Rendez</label>
+                    <input type="time" class="form-control" id="roomArrivalTime" placeholder="On se retrouve quand ?">
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+    </div>
+</section>
+<section class="py-5">
+    <div class="container px-4 px-lg-5 mt-5">
+        <div class="row gx-4 gx-lg-5 row-cols-2 row-cols-md-3 row-cols-xl-4 justify-content-center flex-wrap-reverse flex-row-reverse" id="rooms">
+        </div>
+    </div>
+</section>
+</body>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+    let socket = io();
+
+    let form = document.getElementById('form');
+    let roomName = document.getElementById('roomName');
+    let roomArrivalTime = document.getElementById('roomArrivalTime');
+    let rooms = document.getElementById('rooms');
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (roomName.value && roomArrivalTime.value) {
+            socket.emit('createRoom', {
+                name: roomName.value,
+                arrTime: roomArrivalTime.value
+            });
+            roomName.value = '';
+            roomArrivalTime.value = '';
+        }
+    });
+
+    socket.on('roomListUpdate', function(roomList) {
+        console.log(roomList);
+        rooms.innerHTML = '';
+        for (let i = 0; i < roomList.length; i++) {
+            let room = roomList[i];
+
+            let roomElement = document.createElement('div');
+            roomElement.classList.add('col');
+            roomElement.classList.add('mb-5');
+            roomElement.innerHTML = `
+                <div class="card h-100 bg-dark text-white">
+                    <img class="card-img-top" src="https://picsum.photos/id/${room.id*10}/200"/>
+                    <div class="card-body p-4">
+                        <div class="text-center">
+                            <h5 class="fw-bolder">${room.name}</h5>
+                            <p class="lead fw-normal text-white-50 mb-0">RDV : ${room.arrTime}</p>
+                        </div>
+                    </div>
+                    <div class="card-footer p-4 pt-0 border-top-0 bg-transparent">
+                        <div class="text-center"><button class="btn btn-outline-light mt-auto" onclick="goToRoom(${room.id})">Join</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            rooms.appendChild(roomElement);
+        }
+    });
+
+    function goToRoom(id) {
+        console.log(id);
+
+        // @todo : emit event to let server know a room has been joined and update db
+        // @idea : get user and store it in localStorage
+        // @idea : handle all the db stuff in server side with emits, and use dependency there
+        /** socket.emit('joinRoom', id, user); */
+
+        // @todo : redirect to room page store room id to do all the database stuff
+        // window.location.href = '/room/' + id;
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+</html>
