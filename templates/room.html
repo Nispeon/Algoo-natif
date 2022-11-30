@@ -155,7 +155,7 @@
     // OSM MAP
 
     // TO CHANGE WITH USER HEX AND USER FIRST LETTER
-    var users = [
+    let users = [
         {
             hex: 'FF0000',
             firstLetter: 'a',
@@ -182,7 +182,7 @@
         }
     });
 
-    var restaurants = [
+    let restaurants = [
         {
             localisation: {
                 lat: 48.9008,
@@ -198,14 +198,14 @@
     ]
 
     // MAP
-    var map = L.map('map').setView([48.89, 2.22], 13);
+    let map = L.map('map').setView([48.89, 2.22], 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
     // LOOP TO CREATE USER MARKERS
-    var UserIcon = L.Icon.extend({
+    let UserIcon = L.Icon.extend({
         options: {
             iconSize: [40, 40],
             iconAnchor: [20, 29]
@@ -213,12 +213,12 @@
     });
 
     for (let i = 0; i < users.length; i++) {
-        var user = users[i];
-        var userHex = user.hex;
-        var userLetter = user.firstLetter;
-        var userLoc = user.localisation;
+        let user = users[i];
+        let userHex = user.hex;
+        let userLetter = user.firstLetter;
+        let userLoc = user.localisation;
 
-        var userIcon = new UserIcon({
+        let userIcon = new UserIcon({
             iconUrl: `https://img.icons8.com/material/24/${userHex}/circled-${userLetter}.png`
         })
 
@@ -226,13 +226,13 @@
     }
 
     // LOOP TO CREATE RESTAURANT MARKERS
-    var RestoIcon = L.Icon.extend({
+    let RestoIcon = L.Icon.extend({
         options: {
             iconSize: [40, 40],
             iconAnchor: [20, 29]
         }
     });
-    var restoIcon = new UserIcon({
+    let restoIcon = new UserIcon({
         iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
     })
 
@@ -243,19 +243,19 @@
     // DESTINATION POINT
 
     // Destination icon
-    var DestIcon = L.Icon.extend({
+    let DestIcon = L.Icon.extend({
         options: {
             iconSize: [40, 40],
             iconAnchor: [20, 29]
         }
     });
-    var destIcon = new DestIcon({
+    let destIcon = new DestIcon({
         iconUrl: 'https://img.icons8.com/ios-glyphs/30/FF0000/place-marker.png'
     })
 
     // Destination marker
-    var dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
-    var destPlaced = false;
+    let dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
+    let destPlaced = false;
 
     // When click to set destination
     map.on('click', onMapClick);
@@ -263,7 +263,7 @@
     dest.on('dragend', onDestMove);
 
     function onMapClick(e) {
-        if (destPlaced == false) {
+        if (destPlaced === false) {
             let destPosition = e.latlng;
             dest.setLatLng(destPosition);
             dest.setOpacity(1)
@@ -278,7 +278,7 @@
     }
 
     function onDestMove(e) {
-        var destPosition = e.target.getLatLng();
+        let destPosition = e.target.getLatLng();
 
         console.log(destPosition);
         // Recalculate distance
