@@ -46,8 +46,11 @@ roomList[0] = {
     name: 'Global',
     arrTime: '13:00',
 };
-var roomIds = [0];
+var roomIds = ['0'];
 var id = 1;
+
+var userList = [];
+userList[0] = [];
 
 
 io.on('connection', (socket) => {
@@ -82,12 +85,26 @@ io.on('connection', (socket) => {
 
     socket.on('joinRoom', (roomId, username, color) => {
         console.log('Room: ' + roomId + ' User: ' + username);
-        io.emit('dispatchJoinRoom', roomId, username, color, roomIds, roomList[roomId]);
+
+        // check if roomId is in roomIds
+        if (roomIds.includes(roomId)) {
+            userList[roomId].push({username: username, color: color});
+        }
+
+        // these variables are only a fallback when someone joins an undefined room
+        let roomInfo = roomList[roomId] !== undefined ? roomList[roomId] : null;
+        let users = userList[roomId] !== undefined ? userList[roomId] : null;
+
+        io.emit('dispatchJoinRoom', roomId, username, color, roomIds, roomInfo, users);
     });
 
     socket.on('leaveRoom', (roomId, username) => {
         console.log('User: ' + username + ' left room: ' + roomId);
-        io.emit('dispatchLeaveRoom', roomId, username);
+        if (roomIds.includes(roomId)) {
+            userList[roomId] = userList[roomId].filter(user => user.username !== username);
+        }
+        console.log(userList);
+        io.emit('dispatchLeaveRoom', roomId, username, userList[roomId]);
     });
 });
 

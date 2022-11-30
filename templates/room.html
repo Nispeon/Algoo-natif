@@ -96,21 +96,31 @@
     }
 
     let isCorrectRoom = false;
-    socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo) {
-        setHeader(roomInfo);
 
-        if (roomId === currentRoomId) {
+    const userList = document.getElementById('users');
+
+    function setUsers(users) {
+        userList.innerHTML = '';
+        users.forEach(user => {
             let li = document.createElement('li');
-            li.id = username;
-            li.innerHTML = `<span style="color: ${color}">${username}</span>`;
-            document.getElementById('users').appendChild(li);
+            li.innerHTML = `<span style="color: ${user.color}">${user.username}</span>`;
+            userList.appendChild(li);
+        });
+    }
+    socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo, users) {
+        if (roomInfo !== null && users !== null) {
+            setHeader(roomInfo);
 
-            addMessage(`<strong>${username}</strong> joined the room.`, color);
-        }
+            if (roomId === currentRoomId) {
+                setUsers(users);
 
-        for (let i = 0; i < roomIds.length; i++) {
-            if (roomIds[i] == currentRoomId) {
-                isCorrectRoom = true;
+                addMessage(`<strong>${username}</strong> joined the room.`, color);
+            }
+
+            for (let i = 0; i < roomIds.length; i++) {
+                if (roomIds[i] === currentRoomId) {
+                    isCorrectRoom = true;
+                }
             }
         }
         if (!isCorrectRoom) {
@@ -125,23 +135,13 @@
     };
 
     // remove user from list when tab close
-    socket.on('dispatchLeaveRoom', function(roomId, username) {
+    socket.on('dispatchLeaveRoom', function(roomId, username, users) {
         if (roomId === currentRoomId) {
             console.log('User ' + username + ' left the room');
-            let li = document.getElementById(username);
-            li.remove();
+            setUsers(users);
+            addMessage(`<strong>${username}</strong> left the room.`);
         }
     });
-
-    // socket.on('credentials', (credential) => {
-    //
-    // })
-    //
-    // // create osm map
-    // var map = L.map('osm-map').setView([51.505, -0.09], 13);
-    // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    //     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    // }).addTo(map);
 </script>
 <script>
     // OSM MAP
