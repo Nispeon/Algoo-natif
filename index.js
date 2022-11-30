@@ -13,13 +13,51 @@ app.get('/room', (req, res) => {
     res.sendFile(__dirname + '/templates/room.html');
 });
 
+const restaurants = [
+    {
+        id: 1,
+        name: 'Restaurant 1',
+    },
+    {
+        id: 2,
+        name: 'Restaurant 2',
+    },
+    {
+        id: 3,
+        name: 'Restaurant 3',
+    },
+    {
+        id: 4,
+        name: 'Restaurant 4',
+    },
+    {
+        id: 5,
+        name: 'Restaurant 5',
+    },
+    {
+        id: 6,
+        name: 'Restaurant 6',
+    },
+];
+
+var roomList = [];
+roomList[0] = {
+    id: 0,
+    name: 'Global',
+    arrTime: '13:00',
+};
+var roomIds = [0];
+var id = 1;
+
+
 io.on('connection', (socket) => {
     console.log('New user connected');
 
-    io.emit('credentials', btoa(`${process.env.OPEN_STREET_MAP_USERNAME}:${process.env.OPEN_STREET_MAP_PASSWORD}`));
+    socket.on('getRooms', () => {
+        io.emit('roomListUpdate', roomList);
+    });
 
-    let roomList = [];
-    let id = 0;
+    io.emit('credentials', btoa(`${process.env.OPEN_STREET_MAP_USERNAME}:${process.env.OPEN_STREET_MAP_PASSWORD}`));
 
     socket.on('createRoom', (room) => {
         let newRoom = {
@@ -27,9 +65,29 @@ io.on('connection', (socket) => {
             name: room.name,
             arrTime: room.arrTime,
         }
-        roomList.push(newRoom);
+
+        console.log(room.arrTime);
+
+        roomIds.push(id);
+        roomList[id] = newRoom;
+        console.log(roomList);
         id++;
         io.emit('roomListUpdate', roomList);
+    });
+
+    socket.on('sendMessage', (roomId, username, msg, color) => {
+        console.log('Room: ' + roomId + 'User: ' + username + ' Message: ' + msg + ' Color: ' + color);
+        io.emit('dispatchMessage', roomId, username, msg, color);
+    });
+
+    socket.on('joinRoom', (roomId, username, color) => {
+        console.log('Room: ' + roomId + ' User: ' + username);
+        io.emit('dispatchJoinRoom', roomId, username, color, roomIds, roomList[roomId]);
+    });
+
+    socket.on('leaveRoom', (roomId, username) => {
+        console.log('User: ' + username + ' left room: ' + roomId);
+        io.emit('dispatchLeaveRoom', roomId, username);
     });
 });
 

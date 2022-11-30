@@ -10,39 +10,138 @@
 </head>
 
 <body>
-    <ul id="messages"></ul>
-    <form id="form" action="">
-        <input id="input" autocomplete="off" /><button>Send</button>
-    </form>
+<header class="bg-dark py-5">
+    <div class="container px-4 px-lg-5 my-5">
+        <div class="text-center text-white">
+            <h1 class="display-4 fw-bolder lead">Room :</h1>
+            <p class="lead fw-normal text-white-50 mb-0" id="rdv">Rendez-vous à :</p>
+        </div>
+    </div>
+</header>
+
+<p>Users :</p>
+<ul id="users"></ul>
+
+<p>Messages :</p>
+<ul id="messages"></ul>
+
+<form id="form" action="">
+    <input id="message" type="text" autocomplete="off"/><button>Envoyer</button>
+</form>
 
     <div id="map" style="width: 425px; height: 350px; cursor: pointer;"></div>
 </body>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
     let socket = io();
+
+    // get parameter id from url
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentRoomId = urlParams.get('id');
+
+    // ask username on load and store in const
+    let name = prompt('What is your username?');
+    if (!name) {
+        name = 'guest';
+    }
+
+    const username = `${name}_${uuidv4().substring(0, 4)}`;
+
+    // generate random color hex code that cannot be white or black
+    const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+    console.log(color)
+    // emit event to let users know when someone joins
+    socket.emit('joinRoom', currentRoomId, username, color);
+
+    if (!currentRoomId) {
+        window.location.href = '/';
+    }
+
+    function uuidv4() {
+        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
+
     let form = document.getElementById('form');
-    let input = document.getElementById('input');
+    let input = document.getElementById('message');
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
         if (input.value) {
-            socket.emit('chat message', input.value);
+            socket.emit('sendMessage', currentRoomId, username, input.value, color);
             input.value = '';
         }
     });
 
-    let credential = btoa('')
+    function addMessage(message, color) {
+        if (color === undefined) {
+            color = '#000';
+        }
+        let li = document.createElement('li');
+        li.innerHTML = `<span style="color: ${color}">${message}</span>`;
+        document.getElementById('messages').appendChild(li);
+    }
 
-    socket.on('chat message', function (msg) {
-        var item = document.createElement('li');
-        item.textContent = msg;
-        messages.appendChild(item);
-        window.scrollTo(0, document.body.scrollHeight);
+    socket.on('dispatchMessage', function(roomId, username, msg, color) {
+        if (roomId === currentRoomId) {
+            addMessage(`<strong>${username}</strong>: ${msg}`, color);
+        }
     });
 
-    socket.on('credentials', (credential) => {
+    function setHeader(roomInfo) {
+        document.querySelector('h1').innerHTML = `Room : ${roomInfo.name}`;
+        document.querySelector('#rdv').innerHTML = `Rendez-vous à : ${roomInfo.arrTime}`;
+    }
 
-    })
+    let isCorrectRoom = false;
+    socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo) {
+        setHeader(roomInfo);
+
+        if (roomId === currentRoomId) {
+            let li = document.createElement('li');
+            li.id = username;
+            li.innerHTML = `<span style="color: ${color}">${username}</span>`;
+            document.getElementById('users').appendChild(li);
+
+            addMessage(`<strong>${username}</strong> joined the room.`, color);
+        }
+
+        for (let i = 0; i < roomIds.length; i++) {
+            if (roomIds[i] == currentRoomId) {
+                isCorrectRoom = true;
+            }
+        }
+        if (!isCorrectRoom) {
+            window.location.href = '/';
+        }
+    });
+
+    // DOES NOT WORK YET
+    // emit socket event when tab close
+    window.onbeforeunload = function() {
+        socket.emit('leaveRoom', currentRoomId, username);
+    };
+
+    // remove user from list when tab close
+    socket.on('dispatchLeaveRoom', function(roomId, username) {
+        if (roomId === currentRoomId) {
+            console.log('User ' + username + ' left the room');
+            let li = document.getElementById(username);
+            li.remove();
+        }
+    });
+
+    // socket.on('credentials', (credential) => {
+    //
+    // })
+    //
+    // // create osm map
+    // var map = L.map('osm-map').setView([51.505, -0.09], 13);
+    // L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    //     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    // }).addTo(map);
 </script>
 <script>
     // OSM MAP
