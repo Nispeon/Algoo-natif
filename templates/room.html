@@ -157,6 +157,14 @@
     // TO CHANGE WITH USER HEX AND USER FIRST LETTER
     let users = [
         {
+            hex: '0000FF',
+            firstLetter: 'b',
+            localisation: {
+                lat: 0,
+                lng: 0
+            }
+        },
+        {
             hex: 'FF0000',
             firstLetter: 'a',
             localisation: {
@@ -176,7 +184,7 @@
     ]
 
     navigator.geolocation.getCurrentPosition(function (position) {
-        user.localisation = {
+        users[0].localisation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
         }
@@ -237,7 +245,8 @@
     })
 
     for (let i = 0; i < restaurants.length; i++) {
-        L.marker(restaurants[i], { icon: restoIcon }).addTo(map);
+        L.marker(restaurants[i].localisation
+        , { icon: restoIcon }).addTo(map);
     }
 
     // DESTINATION POINT
