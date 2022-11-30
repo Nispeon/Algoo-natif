@@ -10,6 +10,17 @@
 </head>
 
 <body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="/">Home</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
 <header class="bg-dark py-5">
     <div class="container px-4 px-lg-5 my-5">
         <div class="text-center text-white">
@@ -128,20 +139,17 @@
         }
     });
 
-    // DOES NOT WORK YET
-    // emit socket event when tab close
-    window.onbeforeunload = function() {
-        socket.emit('leaveRoom', currentRoomId, username);
-    };
-
-    // remove user from list when tab close
-    socket.on('dispatchLeaveRoom', function(roomId, username, users) {
+    socket.on('updateUsers', function(roomId, users) {
         if (roomId === currentRoomId) {
-            console.log('User ' + username + ' left the room');
             setUsers(users);
-            addMessage(`<strong>${username}</strong> left the room.`);
         }
     });
+
+    function ping() {
+        socket.emit('ping', currentRoomId, username);
+        console.log('ping');
+    }
+    setInterval(ping, 5000);
 </script>
 <script>
     // OSM MAP

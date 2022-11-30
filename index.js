@@ -69,11 +69,9 @@ io.on('connection', (socket) => {
             arrTime: room.arrTime,
         }
 
-        console.log(room.arrTime);
-
-        roomIds.push(id);
+        roomIds.push(id.toString());
         roomList[id] = newRoom;
-        console.log(roomList);
+        userList[id] = [];
         id++;
         io.emit('roomListUpdate', roomList);
     });
@@ -88,7 +86,8 @@ io.on('connection', (socket) => {
 
         // check if roomId is in roomIds
         if (roomIds.includes(roomId)) {
-            userList[roomId].push({username: username, color: color});
+            userList[roomId].push({username: username, color: color, ping: Date.now()});
+            console.log(userList);
         }
 
         // these variables are only a fallback when someone joins an undefined room
@@ -106,6 +105,20 @@ io.on('connection', (socket) => {
         console.log(userList);
         io.emit('dispatchLeaveRoom', roomId, username, userList[roomId]);
     });
+
+    socket.on('ping', (roomId, username) => {
+        userList[roomId].forEach(user => {
+            if (user.username === username) {
+                user.ping = Date.now();
+            }
+            // if last ping was more than 5 seconds ago, remove user from room
+            if (Date.now() - user.ping > 6000) {
+                userList[roomId] = userList[roomId].filter(u => u.username !== user.username);
+            }
+        });
+        console.log(userList[roomId]);
+        io.emit('updateUsers', roomId, userList[roomId]);
+    })
 });
 
 server.listen(3000, () => {
