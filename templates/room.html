@@ -1,20 +1,21 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Room</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
+        integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
 </head>
+
 <body>
-<ul id="messages"></ul>
-<form id="form" action="">
-    <input id="input" autocomplete="off" /><button>Send</button>
-</form>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+        <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
 
-
-
-<!--IFRAME PTET CACA, PAS SUR DE POUVOIR ADD DES MARKERS DESSUS-->
-<div id="osm-map">
-    <iframe width="425" height="350" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=2.191064357757569%2C48.88026784327868%2C2.2627329826354985%2C48.90704393964602&amp;layer=mapnik&amp;marker=48.89365768409499%2C2.226898670196533" style="border: 1px solid black"></iframe><br/><small><a href="https://www.openstreetmap.org/?mlat=48.8937&amp;mlon=2.2269#map=15/48.8937/2.2269">View Larger Map</a></small>
-</div>
+    <div id="map" style="width: 425px; height: 350px; cursor: pointer;"></div>
 </body>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
@@ -22,7 +23,7 @@
     let form = document.getElementById('form');
     let input = document.getElementById('input');
 
-    form.addEventListener('submit', function(e) {
+    form.addEventListener('submit', function (e) {
         e.preventDefault();
         if (input.value) {
             socket.emit('chat message', input.value);
@@ -32,7 +33,7 @@
 
     let credential = btoa('')
 
-    socket.on('chat message', function(msg) {
+    socket.on('chat message', function (msg) {
         var item = document.createElement('li');
         item.textContent = msg;
         messages.appendChild(item);
@@ -42,12 +43,141 @@
     socket.on('credentials', (credential) => {
 
     })
+</script>
+<script>
+    // OSM MAP
 
-    // create osm map
-    var map = L.map('osm-map').setView([51.505, -0.09], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    // TO CHANGE WITH USER HEX AND USER FIRST LETTER
+    var users = [
+        {
+            hex: 'FF0000',
+            firstLetter: 'a',
+            localisation: {
+                lat: 48.8869,
+                lng: 2.2006
+            },
+            restoId: 2
+        },
+        {
+            hex: '00FF00',
+            firstLetter: 'c',
+            localisation: {
+                lat: 48.8783,
+                lng: 2.2346
+            }
+        }
+    ]
+
+    navigator.geolocation.getCurrentPosition(function (position) {
+        user.localisation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        }
+    });
+
+    var restaurants = [
+        {
+            localisation: {
+                lat: 48.9008,
+                lng: 2.2116
+            }
+        },
+        {
+            localisation: {
+                lat: 48.9044,
+                lng: 2.2425
+            }
+        }
+    ]
+
+    // MAP
+    var map = L.map('map').setView([48.89, 2.22], 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
+    // LOOP TO CREATE USER MARKERS
+    var UserIcon = L.Icon.extend({
+        options: {
+            iconSize: [40, 40],
+            iconAnchor: [20, 29]
+        }
+    });
+
+    for (let i = 0; i < users.length; i++) {
+        var user = users[i];
+        var userHex = user.hex;
+        var userLetter = user.firstLetter;
+        var userLoc = user.localisation;
+
+        var userIcon = new UserIcon({
+            iconUrl: `https://img.icons8.com/material/24/${userHex}/circled-${userLetter}.png`
+        })
+
+        L.marker(userLoc, { icon: userIcon }).addTo(map);
+    }
+
+    // LOOP TO CREATE RESTAURANT MARKERS
+    var RestoIcon = L.Icon.extend({
+        options: {
+            iconSize: [40, 40],
+            iconAnchor: [20, 29]
+        }
+    });
+    var restoIcon = new UserIcon({
+        iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
+    })
+
+    for (let i = 0; i < restaurants.length; i++) {
+        L.marker(restaurants[i], { icon: restoIcon }).addTo(map);
+    }
+
+    // DESTINATION POINT
+
+    // Destination icon
+    var DestIcon = L.Icon.extend({
+        options: {
+            iconSize: [40, 40],
+            iconAnchor: [20, 29]
+        }
+    });
+    var destIcon = new DestIcon({
+        iconUrl: 'https://img.icons8.com/ios-glyphs/30/FF0000/place-marker.png'
+    })
+
+    // Destination marker
+    var dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
+    var destPlaced = false;
+
+    // When click to set destination
+    map.on('click', onMapClick);
+    // When destination is moved
+    dest.on('dragend', onDestMove);
+
+    function onMapClick(e) {
+        if (destPlaced == false) {
+            let destPosition = e.latlng;
+            dest.setLatLng(destPosition);
+            dest.setOpacity(1)
+            destPlaced = true;
+
+            console.log(destPosition);
+            // Recalculate distance
+        }
+        else {
+            console.log("Marker already placed")
+        }
+    }
+
+    function onDestMove(e) {
+        var destPosition = e.target.getLatLng();
+
+        console.log(destPosition);
+        // Recalculate distance
+    }
+
+    // END DESTINATION POINT
 </script>
+
 </html>
