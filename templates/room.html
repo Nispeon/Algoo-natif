@@ -5,7 +5,7 @@
     <title>Room</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
         integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+        <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
         integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
 </head>
 
@@ -50,6 +50,8 @@
     const urlParams = new URLSearchParams(window.location.search);
     const currentRoomId = urlParams.get('id');
 
+    let userList = [];
+
     // ask username on load and store in const
     let name = prompt('What is your username?');
     if (!name) {
@@ -61,9 +63,17 @@
     // generate random color hex code that cannot be white or black
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
-    console.log(color)
-    // emit event to let users know when someone joins
-    socket.emit('joinRoom', currentRoomId, username, color);
+    let currentLocation = {
+        lat: 0,
+        lng: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(function (position) {
+        currentLocation.lat = position.coords.latitude;
+        currentLocation.lng = position.coords.longitude;
+    });
+
+    socket.emit('joinRoom', currentRoomId, username, color, currentLocation);
 
     if (!currentRoomId) {
         window.location.href = '/';
@@ -108,14 +118,15 @@
 
     let isCorrectRoom = false;
 
-    const userList = document.getElementById('users');
+    const userListElement = document.getElementById('users');
 
     function setUsers(users) {
-        userList.innerHTML = '';
+        userListElement.innerHTML = '';
+        userList = users;
         users.forEach(user => {
             let li = document.createElement('li');
             li.innerHTML = `<span style="color: ${user.color}">${user.username}</span>`;
-            userList.appendChild(li);
+            userListElement.appendChild(li);
         });
     }
     socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo, users) {
@@ -146,49 +157,25 @@
     });
 
     function ping() {
-        socket.emit('ping', currentRoomId, username);
-        console.log('ping');
+        navigator.geolocation.getCurrentPosition(function (position) {
+            currentLocation.lat = position.coords.latitude;
+            currentLocation.lng = position.coords.longitude;
+        });
+
+        userList.forEach(user => {
+            let hex = user.color.substring(1);
+            let initial = user.username.substring(0, 1);
+            let userLocation = user.location;
+            let userIcon = new UserIcon({iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png`});
+
+            L.marker(userLocation, { icon: userIcon }).addTo(map);
+        })
+
+        socket.emit('ping', currentRoomId, username, currentLocation);
     }
     setInterval(ping, 5000);
-</script>
-<script>
+
     // OSM MAP
-
-    // TO CHANGE WITH USER HEX AND USER FIRST LETTER
-    let users = [
-        {
-            hex: '0000FF',
-            firstLetter: 'b',
-            localisation: {
-                lat: 0,
-                lng: 0
-            }
-        },
-        {
-            hex: 'FF0000',
-            firstLetter: 'a',
-            localisation: {
-                lat: 48.8869,
-                lng: 2.2006
-            },
-            restoId: 2
-        },
-        {
-            hex: '00FF00',
-            firstLetter: 'c',
-            localisation: {
-                lat: 48.8783,
-                lng: 2.2346
-            }
-        }
-    ]
-
-    navigator.geolocation.getCurrentPosition(function (position) {
-        users[0].localisation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-        }
-    });
 
     let restaurants = [
         {
@@ -220,19 +207,6 @@
         }
     });
 
-    for (let i = 0; i < users.length; i++) {
-        let user = users[i];
-        let userHex = user.hex;
-        let userLetter = user.firstLetter;
-        let userLoc = user.localisation;
-
-        let userIcon = new UserIcon({
-            iconUrl: `https://img.icons8.com/material/24/${userHex}/circled-${userLetter}.png`
-        })
-
-        L.marker(userLoc, { icon: userIcon }).addTo(map);
-    }
-
     // LOOP TO CREATE RESTAURANT MARKERS
     let RestoIcon = L.Icon.extend({
         options: {
@@ -240,7 +214,7 @@
             iconAnchor: [20, 29]
         }
     });
-    let restoIcon = new UserIcon({
+    let restoIcon = new RestoIcon({
         iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
     })
 
@@ -279,6 +253,8 @@
             destPlaced = true;
 
             console.log(destPosition);
+
+            socket.emit('setDestination', currentRoomId, destPosition);
             // Recalculate distance
         }
         else {
@@ -290,10 +266,19 @@
         let destPosition = e.target.getLatLng();
 
         console.log(destPosition);
+        socket.emit('setDestination', currentRoomId, destPosition);
+
         // Recalculate distance
     }
 
     // END DESTINATION POINT
+    socket.on('updateDestination', function(roomId, destPosition) {
+        if (roomId === currentRoomId) {
+            dest.setLatLng(destPosition);
+            dest.setOpacity(1);
+            destPlaced = true;
+        }
+    });
 </script>
 
 </html>

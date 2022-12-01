@@ -81,12 +81,17 @@ io.on('connection', (socket) => {
         io.emit('dispatchMessage', roomId, username, msg, color);
     });
 
-    socket.on('joinRoom', (roomId, username, color) => {
+    socket.on('joinRoom', (roomId, username, color, location) => {
         console.log('Room: ' + roomId + ' User: ' + username);
 
         // check if roomId is in roomIds
         if (roomIds.includes(roomId)) {
-            userList[roomId].push({username: username, color: color, ping: Date.now()});
+            userList[roomId].push({
+                username: username,
+                color: color,
+                ping: Date.now(),
+                location: location,
+            });
             console.log(userList);
         }
 
@@ -106,19 +111,24 @@ io.on('connection', (socket) => {
         io.emit('dispatchLeaveRoom', roomId, username, userList[roomId]);
     });
 
-    socket.on('ping', (roomId, username) => {
+    socket.on('ping', (roomId, username, location) => {
         userList[roomId].forEach(user => {
             if (user.username === username) {
                 user.ping = Date.now();
+                user.location = location;
             }
             // if last ping was more than 5 seconds ago, remove user from room
             if (Date.now() - user.ping > 6000) {
                 userList[roomId] = userList[roomId].filter(u => u.username !== user.username);
             }
         });
-        console.log(userList[roomId]);
         io.emit('updateUsers', roomId, userList[roomId]);
     })
+
+    socket.on('setDestination', (roomId, destination) => {
+        console.log('Room: ' + roomId + ' Destination: ' + destination);
+        io.emit('updateDestination', roomId, destination);
+    });
 });
 
 server.listen(3000, () => {
