@@ -13,33 +13,6 @@ app.get('/room', (req, res) => {
     res.sendFile(__dirname + '/templates/room.html');
 });
 
-const restaurants = [
-    {
-        id: 1,
-        name: 'Restaurant 1',
-    },
-    {
-        id: 2,
-        name: 'Restaurant 2',
-    },
-    {
-        id: 3,
-        name: 'Restaurant 3',
-    },
-    {
-        id: 4,
-        name: 'Restaurant 4',
-    },
-    {
-        id: 5,
-        name: 'Restaurant 5',
-    },
-    {
-        id: 6,
-        name: 'Restaurant 6',
-    },
-];
-
 var roomList = [];
 roomList[0] = {
     id: 0,
@@ -128,6 +101,17 @@ io.on('connection', (socket) => {
     socket.on('setDestination', (roomId, destination) => {
         console.log('Room: ' + roomId + ' Destination: ' + destination);
         io.emit('updateDestination', roomId, destination);
+    });
+
+    socket.on('selectRestaurant', (roomId, username, restaurant) => {
+        console.log('Room: ' + roomId + ' User: ' + username + ' Restaurant: ' + restaurant);
+        // add restaurant to user
+        userList[roomId].forEach(user => {
+            if (user.username === username) {
+                user.restaurant = restaurant;
+            }
+        });
+        io.emit('updateUsers', roomId, userList[roomId]);
     });
 });
 

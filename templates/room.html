@@ -30,6 +30,9 @@
         </div>
     </header>
 
+    <p>Restaurants :</p>
+    <ul id="restaurants"></ul>
+
     <p>Users :</p>
     <ul id="users"></ul>
 
@@ -66,6 +69,36 @@
 
     // generate random color hex code that cannot be white or black
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+    const restaurants = [
+        {
+            name: 'Restaurant 1',
+            location: {
+                lat: 48.9008,
+                lng: 2.2116
+            }
+        },
+        {
+            name: 'Restaurant 2',
+            location: {
+                lat: 48.9044,
+                lng: 2.2425
+            }
+        }
+    ]
+
+    for (let i = 0; i < restaurants.length; i++) {
+        // add restaurant to ul with id restaurants
+        const restaurant = restaurants[i];
+        const li = document.createElement('li');
+        li.innerHTML = `${restaurant.name} <button onclick="selectRestaurant(${i})"> Go </button>`;
+        document.getElementById('restaurants').appendChild(li);
+    }
+
+    function selectRestaurant(restaurantIndex) {
+        let restaurant = restaurants[restaurantIndex];
+        socket.emit('selectRestaurant', currentRoomId, username, restaurant);
+    }
 
     let currentLocation = {
         lat: 0,
@@ -195,7 +228,7 @@
 
                     // Line between resto and destination
                     drawALine(userRestoLoc, dest.getLatLng(), user.color)
-                }   
+                }
                 else {
                     // Line between user and destination
                     drawALine(userLocation, dest.getLatLng(), user.color)
@@ -206,41 +239,6 @@
 
     // OSM MAP
 
-    // TO CHANGE WITH USER HEX AND USER FIRST LETTER
-    let users = [
-        {
-            hex: '0000FF',
-            firstLetter: 'b',
-            restaurant: {
-                name: 'La Pizza',
-                location: {
-                    lat: 48.9008,
-                    lng: 2.2116
-                }
-            },
-            localisation: {
-                lat: '',
-                lng: ''
-            }
-        },
-        {
-            hex: 'FF0000',
-            firstLetter: 'a',
-            restaurant: {
-                name: 'Le Bistrot',
-                location: {
-                    lat: 48.9044,
-                    lng: 2.2425
-                }
-            },
-            localisation: {
-                lat: 48.8869,
-                lng: 2.2006
-            }
-        }
-    ]
-
-    // MAP
     let map = L.map('map').setView([48.89, 2.22], 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -263,7 +261,7 @@
     let destIcon = new Icon({
         iconUrl: 'https://img.icons8.com/ios-glyphs/30/FF0000/place-marker.png'
     })
-    
+
     // DESTINATION POINT
 
     // Destination marker
@@ -287,12 +285,14 @@
             socket.emit('setDestination', currentRoomId, destPosition);
             // Recalculate distance
         }
+        else {
+            alert('Pour changer le point de RDV, veuillez glisser le point actuel.');
+            console.log("Marker already placed")
+        }
     }
 
     function onDestMove(e) {
         let destPosition = e.target.getLatLng();
-
-        console.log(destPosition);
 
         socket.emit('setDestination', currentRoomId, destPosition);
         // Recalculate distance
