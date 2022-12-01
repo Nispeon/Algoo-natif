@@ -50,6 +50,10 @@
     const urlParams = new URLSearchParams(window.location.search);
     const currentRoomId = urlParams.get('id');
 
+    if (!currentRoomId) {
+        window.location.href = '/';
+    }
+
     let userList = [];
 
     // ask username on load and store in const
@@ -74,10 +78,6 @@
     });
 
     socket.emit('joinRoom', currentRoomId, username, color, currentLocation);
-
-    if (!currentRoomId) {
-        window.location.href = '/';
-    }
 
     function uuidv4() {
         return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
@@ -114,6 +114,7 @@
     function setHeader(roomInfo) {
         document.querySelector('h1').innerHTML = `Room : ${roomInfo.name}`;
         document.querySelector('#rdv').innerHTML = `Rendez-vous à : ${roomInfo.arrTime}`;
+        // ADD HEURE DE DEPART
     }
 
     let isCorrectRoom = false;
@@ -162,23 +163,46 @@
             currentLocation.lng = position.coords.longitude;
         });
 
-        userList.forEach(user => {
-            let hex = user.color.substring(1);
-            let initial = user.username.substring(0, 1);
-            let userLocation = user.location;
-            let userIcon = new UserIcon({iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png`});
-            // let userResto = {
-            //     lat: user.resto.lat,
-            //     lng: user.resto.lng
-            // }
-
-            L.marker(userLocation, { icon: userIcon }).addTo(map);
-            drawALine(userLocation, userResto);
-        })
+        drawUsers();
 
         socket.emit('ping', currentRoomId, username, currentLocation);
     }
     setInterval(ping, 5000);
+
+    const userMarkers = [];
+    const restoMarkers = [];
+
+    function drawUsers() {
+        userList.forEach(user => {
+            let hex = user.color.substring(1);
+            let initial = user.username.substring(0, 1);
+            let userLocation = user.location;
+            let userIcon = new Icon({iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png`});
+            let userRestoLoc = user.restaurant.location;
+
+            // User marker
+            userMarkers[user.username] = L.marker(userLocation, { icon: userIcon });
+            userMarkers[user.username].addTo(map);
+
+            if (dest) {
+                if (userResto) {
+                    // Resto marker
+                    restoMarkers[user.restaurant.name] = L.marker(userRestoLoc, { icon: restoIcon });
+                    restoMarkers[user.restaurant.name].addTo(map);
+
+                    // Line between user and resto
+                    drawALine(userLocation, userRestoLoc, user.color);
+
+                    // Line between resto and destination
+                    drawALine(userRestoLoc, dest.getLatLng(), user.color)
+                }   
+                else {
+                    // Line between user and destination
+                    drawALine(userLocation, dest.getLatLng(), user.color)
+                }
+            }
+        })
+    }
 
     // OSM MAP
 
@@ -187,10 +211,12 @@
         {
             hex: '0000FF',
             firstLetter: 'b',
-            resto: {
-                name: 'Le Bistrot',
-                lat: 48.9008,
-                lng: 2.2116
+            restaurant: {
+                name: 'La Pizza',
+                location: {
+                    lat: 48.9008,
+                    lng: 2.2116
+                }
             },
             localisation: {
                 lat: '',
@@ -200,42 +226,16 @@
         {
             hex: 'FF0000',
             firstLetter: 'a',
-            resto: {
-                name: 'La Pizza',
-                lat: 48.9044,
-                lng: 2.2425
+            restaurant: {
+                name: 'Le Bistrot',
+                location: {
+                    lat: 48.9044,
+                    lng: 2.2425
+                }
             },
             localisation: {
                 lat: 48.8869,
                 lng: 2.2006
-            }
-        },
-        {
-            hex: '00FF00',
-            firstLetter: 'c',
-            resto: {
-                name: 'Le Bistrot',
-                lat: 48.9008,
-                lng: 2.2116
-            },
-            localisation: {
-                lat: 48.8783,
-                lng: 2.2346
-            }
-        }
-    ]
-
-    let restaurants = [
-        {
-            localisation: {
-                lat: 48.9008,
-                lng: 2.2116
-            }
-        },
-        {
-            localisation: {
-                lat: 48.9044,
-                lng: 2.2425
             }
         }
     ]
@@ -247,41 +247,24 @@
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // LOOP TO CREATE USER MARKERS
-    let UserIcon = L.Icon.extend({
+    // Set icon size
+    let Icon = L.Icon.extend({
         options: {
             iconSize: [40, 40],
             iconAnchor: [20, 29]
         }
     });
 
-    // LOOP TO CREATE RESTAURANT MARKERS
-    let RestoIcon = L.Icon.extend({
-        options: {
-            iconSize: [40, 40],
-            iconAnchor: [20, 29]
-        }
-    });
-    let restoIcon = new RestoIcon({
+    // Set Resto icon
+    let restoIcon = new Icon({
         iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
     })
-
-    for (let i = 0; i < restaurants.length; i++) {
-        L.marker(restaurants[i].localisation, { icon: restoIcon }).addTo(map);
-    }
-
-    // DESTINATION POINT
-
-    // Destination icon
-    let DestIcon = L.Icon.extend({
-        options: {
-            iconSize: [40, 40],
-            iconAnchor: [20, 29]
-        }
-    });
-    let destIcon = new DestIcon({
+    // Set Destination icon
+    let destIcon = new Icon({
         iconUrl: 'https://img.icons8.com/ios-glyphs/30/FF0000/place-marker.png'
     })
+    
+    // DESTINATION POINT
 
     // Destination marker
     let dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
@@ -304,28 +287,24 @@
             socket.emit('setDestination', currentRoomId, destPosition);
             // Recalculate distance
         }
-        else {
-            console.log("Marker already placed")
-        }
     }
 
     function onDestMove(e) {
         let destPosition = e.target.getLatLng();
 
         console.log(destPosition);
-        socket.emit('setDestination', currentRoomId, destPosition);
 
+        socket.emit('setDestination', currentRoomId, destPosition);
         // Recalculate distance
     }
 
     // END DESTINATION POINT
 
-    // function drawALine(userPos, restoPos, destPos, color) {
-    //     if (userPos.lat && restoPos.lat && destPos.lat) {
-    //         L.polyline([userPos, restoPos], { color: color }).addTo(map);
-    //         L.polyline([restoPos, destPos], { color: color }).addTo(map);
-    //     }
-    // }
+    function drawALine(pos1, pos2, color) {
+        if (pos1.lat && pos2.lat) {
+            L.polyline([pos1, pos2], { color: color }).addTo(map);
+        }
+    }
 
     socket.on('updateDestination', function(roomId, destPosition) {
         if (roomId === currentRoomId) {
