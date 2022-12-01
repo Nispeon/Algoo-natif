@@ -65,6 +65,8 @@ io.on('connection', (socket) => {
                 color: color,
                 ping: Date.now(),
                 location: location,
+                time: null,
+                distance: null,
             });
             console.log(userList);
         }
@@ -115,6 +117,17 @@ io.on('connection', (socket) => {
         });
         io.emit('updateUsers', roomId, userList[roomId]);
     });
+
+    socket.on('updateUsersTimeDistance', (roomId, usersTimeDistance) => {
+        usersTimeDistance.forEach(user => {
+            userList[roomId].forEach(u => {
+                if (u.username === user.username) {
+                    u.time = user.time;
+                    u.distance = user.distance;
+                }
+            });
+        });
+    })
 });
 
 server.listen(3000, () => {

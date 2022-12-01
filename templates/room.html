@@ -147,7 +147,6 @@
     function setHeader(roomInfo) {
         document.querySelector('h1').innerHTML = `Room : ${roomInfo.name}`;
         document.querySelector('#rdv').innerHTML = `Rendez-vous à : ${roomInfo.arrTime}`;
-        // ADD HEURE DE DEPART
     }
 
     let isCorrectRoom = false;
@@ -179,7 +178,6 @@
                 }
             }
 
-            console.log(roomInfo.destination)
             if (roomInfo.destination) {
                 dest.setLatLng(roomInfo.destination);
                 dest.setOpacity(1)
@@ -196,6 +194,13 @@
             clearMap();
             setUsers(users);
             drawUsers();
+
+            userList.forEach(user => {
+                if (user.username === username) {
+                    console.log(user)
+                    console.log(user.time, user.distance)
+                }
+            });
         }
     });
 
@@ -217,6 +222,7 @@
     let lines = [];
 
     function drawUsers() {
+        let usersTimeDistance = [];
         userList.forEach(user => {
             let hex = user.color.substring(1);
             let initial = user.username.substring(0, 1).toLowerCase();
@@ -229,7 +235,7 @@
             userMarkers.push(L.marker(userLocation, { icon: userIcon }))
             userMarkers[userMarkers.length - 1].addTo(map);
 
-            if (dest) {
+            if (dest.getLatLng().lng !== 0) {
                 if (user.restaurant) {
                     let userRestoLoc = user.restaurant.location;
 
@@ -258,14 +264,22 @@
                 }
             }
 
+            // Distance in km
             totalDistance = totalDistance.toFixed(2);
-            totalTime = totalTime.toFixed(2);
-            rhours = Math.floor(totalTime);
-            minutes = (totalTime - rhours) * 60;
-            rminutes = Math.round(minutes);
 
-            console.log("Distance à parcourir : " + totalDistance + "km", "Temps de parcourt : " + totalTime + " h = " + rhours + " h " + rminutes + " min");
-        })
+            totalTime = totalTime.toFixed(2);
+            let rhours = Math.floor(totalTime);
+            let minutes = (totalTime - rhours) * 60;
+            let rminutes = Math.round(minutes);
+
+            // Time in hours and minutes
+            let time = `${rhours}h${rminutes}`;
+
+            usersTimeDistance.push({ username: user.username, time: time, distance: totalDistance });
+        });
+        console.log(usersTimeDistance)
+
+        socket.emit('updateUsersTimeDistance', currentRoomId, usersTimeDistance);
     }
 
     function clearMap() {
