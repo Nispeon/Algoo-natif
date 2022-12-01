@@ -10,35 +10,35 @@
 </head>
 
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-        <div class="collapse navbar-collapse" id="navbarNavDropdown">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="/">Home</a>
-                </li>
-            </ul>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="/">Home</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-    </div>
-</nav>
-<header class="bg-dark py-5">
-    <div class="container px-4 px-lg-5 my-5">
-        <div class="text-center text-white">
-            <h1 class="display-4 fw-bolder lead">Room :</h1>
-            <p class="lead fw-normal text-white-50 mb-0" id="rdv">Rendez-vous à :</p>
+    </nav>
+    <header class="bg-dark py-5">
+        <div class="container px-4 px-lg-5 my-5">
+            <div class="text-center text-white">
+                <h1 class="display-4 fw-bolder lead">Room :</h1>
+                <p class="lead fw-normal text-white-50 mb-0" id="rdv">Rendez-vous à :</p>
+            </div>
         </div>
-    </div>
-</header>
+    </header>
 
-<p>Users :</p>
-<ul id="users"></ul>
+    <p>Users :</p>
+    <ul id="users"></ul>
 
-<p>Messages :</p>
-<ul id="messages"></ul>
+    <p>Messages :</p>
+    <ul id="messages"></ul>
 
-<form id="form" action="">
-    <input id="message" type="text" autocomplete="off"/><button>Envoyer</button>
-</form>
+    <form id="form" action="">
+        <input id="message" type="text" autocomplete="off" /><button>Envoyer</button>
+    </form>
 
     <div id="map" style="width: 425px; height: 350px; cursor: pointer;"></div>
 </body>
@@ -70,7 +70,7 @@
     }
 
     function uuidv4() {
-        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
             (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
         );
     }
@@ -95,7 +95,7 @@
         document.getElementById('messages').appendChild(li);
     }
 
-    socket.on('dispatchMessage', function(roomId, username, msg, color) {
+    socket.on('dispatchMessage', function (roomId, username, msg, color) {
         if (roomId === currentRoomId) {
             addMessage(`<strong>${username}</strong>: ${msg}`, color);
         }
@@ -118,7 +118,7 @@
             userList.appendChild(li);
         });
     }
-    socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo, users) {
+    socket.on('dispatchJoinRoom', function (roomId, username, color, roomIds, roomInfo, users) {
         if (roomInfo !== null && users !== null) {
             setHeader(roomInfo);
 
@@ -139,7 +139,7 @@
         }
     });
 
-    socket.on('updateUsers', function(roomId, users) {
+    socket.on('updateUsers', function (roomId, users) {
         if (roomId === currentRoomId) {
             setUsers(users);
         }
@@ -159,23 +159,37 @@
         {
             hex: '0000FF',
             firstLetter: 'b',
+            resto: {
+                name: 'Le Bistrot',
+                lat: 48.9008,
+                lng: 2.2116
+            },
             localisation: {
-                lat: 0,
-                lng: 0
+                lat: '',
+                lng: ''
             }
         },
         {
             hex: 'FF0000',
             firstLetter: 'a',
+            resto: {
+                name: 'La Pizza',
+                lat: 48.9044,
+                lng: 2.2425
+            },
             localisation: {
                 lat: 48.8869,
                 lng: 2.2006
-            },
-            restoId: 2
+            }
         },
         {
             hex: '00FF00',
             firstLetter: 'c',
+            resto: {
+                name: 'Le Bistrot',
+                lat: 48.9008,
+                lng: 2.2116
+            },
             localisation: {
                 lat: 48.8783,
                 lng: 2.2346
@@ -225,12 +239,18 @@
         let userHex = user.hex;
         let userLetter = user.firstLetter;
         let userLoc = user.localisation;
+        let userResto = {
+            lat: user.resto.lat,
+            lng: user.resto.lng
+        }
 
         let userIcon = new UserIcon({
             iconUrl: `https://img.icons8.com/material/24/${userHex}/circled-${userLetter}.png`
         })
 
         L.marker(userLoc, { icon: userIcon }).addTo(map);
+
+        drawALine(userLoc, userResto);
     }
 
     // LOOP TO CREATE RESTAURANT MARKERS
@@ -240,13 +260,12 @@
             iconAnchor: [20, 29]
         }
     });
-    let restoIcon = new UserIcon({
+    let restoIcon = new RestoIcon({
         iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
     })
 
     for (let i = 0; i < restaurants.length; i++) {
-        L.marker(restaurants[i].localisation
-        , { icon: restoIcon }).addTo(map);
+        L.marker(restaurants[i].localisation, { icon: restoIcon }).addTo(map);
     }
 
     // DESTINATION POINT
@@ -279,6 +298,7 @@
             destPlaced = true;
 
             console.log(destPosition);
+
             // Recalculate distance
         }
         else {
@@ -294,6 +314,13 @@
     }
 
     // END DESTINATION POINT
+
+    // function drawALine(userPos, restoPos, destPos, color) {
+    //     if (userPos.lat && restoPos.lat && destPos.lat) {
+    //         L.polyline([userPos, restoPos], { color: color }).addTo(map);
+    //         L.polyline([restoPos, destPos], { color: color }).addTo(map);
+    //     }
+    // }
 </script>
 
 </html>
