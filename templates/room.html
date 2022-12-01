@@ -72,19 +72,34 @@
 
     const restaurants = [
         {
-            name: 'Restaurant 1',
+            name: 'Okiko',
             location: {
                 lat: 48.9008,
                 lng: 2.2116
             }
         },
         {
-            name: 'Restaurant 2',
+            name: 'Le Bistrot de la Gare',
             location: {
                 lat: 48.9044,
                 lng: 2.2425
             }
+        },
+        {
+            name: 'Aubrac',
+            location: {
+                lat: 48.9064,
+                lng: 2.2525
+            }
+        },
+        {
+            name: 'McDonalds',
+            location: {
+                lat: 48.9144,
+                lng: 2.2488
+            }
         }
+
     ]
 
     for (let i = 0; i < restaurants.length; i++) {
@@ -277,8 +292,6 @@
 
             usersTimeDistance.push({ username: user.username, time: time, distance: totalDistance });
         });
-        console.log(usersTimeDistance)
-
         socket.emit('updateUsersTimeDistance', currentRoomId, usersTimeDistance);
     }
 
@@ -375,7 +388,7 @@
     });
 
     function timeBetweenTwoPos(pos1, pos2) {
-        if (pos1.lat && pos2.lat) {
+        if (pos1.lat !== 0 && pos2.lat !== 0) {
             // Radius of the earth in km
             let R = 6371;
             let dLat = deg2rad(pos2.lat - pos1.lat);
@@ -396,6 +409,11 @@
                 time: t
             };
         }
+
+        return {
+            distance: 0,
+            time: 0
+        };
     }
 
     function deg2rad(deg) {
