@@ -7,6 +7,8 @@
         integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
         integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
 </head>
 
 <body>
@@ -21,7 +23,7 @@
             </div>
         </div>
     </nav>
-    <header class="bg-dark py-5">
+    <header class="bg-dark py-3">
         <div class="container px-4 px-lg-5 my-5">
             <div class="text-center text-white">
                 <h1 class="display-4 fw-bolder lead">Room :</h1>
@@ -30,20 +32,32 @@
         </div>
     </header>
 
-    <p>Restaurants :</p>
-    <ul id="restaurants"></ul>
-
-    <p>Users :</p>
-    <ul id="users"></ul>
-
-    <p>Messages :</p>
-    <ul id="messages"></ul>
-
-    <form id="form" action="">
-        <input id="message" type="text" autocomplete="off" /><button>Envoyer</button>
-    </form>
-
-    <div id="map" style="width: 425px; height: 350px; cursor: pointer;"></div>
+    <section class="m-0 w-100" style="height: 70vh">
+        <div class="row col-12 pt-5 h-100">
+            <div class="col col-2">
+                <p>Restaurants :</p>
+                <ul id="restaurants" class="list-unstyled mx-3"></ul>
+            </div>
+            <div class="col col-7">
+                <div id="map" style="width: 100%; height: 100%; cursor: pointer;"></div>
+            </div>
+            <div class="col col-3">
+                <p>Users :</p>
+                <ul id="users" class="list-unstyled mx-3"></ul>
+                <div class="card border border-dark">
+                    <ul id="messages" class="overflow-auto list-unstyled mx-3 mt-2" style="height: 300px"></ul>
+                    <form id="form" action="">
+                        <div class="input-group mb-0">
+                            <input type="text" class="form-control" id="message" autocomplete="off" />
+                            <button class="btn btn-warning" type="button" id="button-addon2" style="padding-top: .55rem;">
+                                Envoyer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
 </body>
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 <script>
@@ -61,13 +75,17 @@
 
     // ask username on load and store in const
     let name = prompt('What is your username?');
-    if (!name) {
-        name = 'guest';
+
+    while (!name.match(/^[a-zA-Z]+$/)) {
+        if (!name) {
+            name = 'guest';
+        } else {
+            name = prompt('Please enter a valid username (only letters)');
+        }
     }
 
     const username = `${name}_${uuidv4().substring(0, 4)}`;
 
-    // generate random color hex code that cannot be white or black
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
     const restaurants = [
@@ -103,10 +121,12 @@
     ]
 
     for (let i = 0; i < restaurants.length; i++) {
-        // add restaurant to ul with id restaurants
         const restaurant = restaurants[i];
         const li = document.createElement('li');
-        li.innerHTML = `${restaurant.name} <button onclick="selectRestaurant(${i})"> Go </button>`;
+        li.classList.add('list-group-item');
+        li.classList.add('d-flex');
+        li.classList.add('justify-content-between');
+        li.innerHTML = `${restaurant.name} <button class="btn btn-primary" onclick="selectRestaurant(${i})"> Go </button>`;
         document.getElementById('restaurants').appendChild(li);
     }
 
@@ -168,12 +188,42 @@
 
     const userListElement = document.getElementById('users');
 
-    function setUsers(users) {
+    const now = new Date();
+    function setUsers(users, arrTime) {
+
+        let arrHour = arrTime.substring(0, 2);
+        let arrMinutes = arrTime.substring(3, 5);
+
         userListElement.innerHTML = '';
         userList = users;
         users.forEach(user => {
             let li = document.createElement('li');
-            li.innerHTML = `<span style="color: ${user.color}">${user.username}</span>`;
+            let udist = user.distance ? user.distance : 'X.XX';
+            let urest = user.restaurant ? user.restaurant.name : 'XXX';
+            let utime = user.time ? user.time : 'X.XX';
+
+            if (user.time) {
+                let userHour = user.time.substring(0, 2);
+                let userMinutes = user.time.substring(3, 5);
+
+                let hours = arrHour - userHour;
+                let minutes = arrMinutes - userMinutes;
+
+                if (minutes < 0) {
+                    minutes += 60;
+                    hours -= 1;
+                }
+
+                if (hours < 0) {
+                    hours += 24;
+                }
+
+                let leaveTime = `${hours}h${minutes}`;
+
+                li.innerHTML = `<span style="color: ${user.color}">${user.username}</span> - 🏪 ${urest} - 🗺️ ${udist}km (🚶 ${utime}) - 🕒 ${leaveTime}`;
+            } else {
+                li.innerHTML = `<span style="color: ${user.color}">${user.username}</span> - 🏪 ${urest} - 🗺️ ${udist}km`;
+            }
             userListElement.appendChild(li);
         });
     }
@@ -182,7 +232,7 @@
             setHeader(roomInfo);
 
             if (roomId === currentRoomId) {
-                setUsers(users);
+                setUsers(users, roomInfo.arrTime);
 
                 addMessage(`<strong>${username}</strong> joined the room.`, color);
             }
@@ -204,18 +254,11 @@
         }
     });
 
-    socket.on('updateUsers', function (roomId, users) {
+    socket.on('updateUsers', function (roomId, users, roomInfo) {
         if (roomId === currentRoomId) {
             clearMap();
-            setUsers(users);
+            setUsers(users, roomInfo.arrTime);
             drawUsers();
-
-            userList.forEach(user => {
-                if (user.username === username) {
-                    console.log(user)
-                    console.log(user.time, user.distance)
-                }
-            });
         }
     });
 
@@ -284,10 +327,15 @@
 
             totalTime = totalTime.toFixed(2);
             let rhours = Math.floor(totalTime);
+            if (rhours < 10) {
+                rhours = '0' + rhours;
+            }
             let minutes = (totalTime - rhours) * 60;
             let rminutes = Math.round(minutes);
+            if (rminutes < 10) {
+                rminutes = '0' + rminutes;
+            }
 
-            // Time in hours and minutes
             let time = `${rhours}h${rminutes}`;
 
             usersTimeDistance.push({ username: user.username, time: time, distance: totalDistance });
@@ -342,9 +390,7 @@
     let dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
     let destPlaced = false;
 
-    // When click to set destination
     map.on('click', onMapClick);
-    // When destination is moved
     dest.on('dragend', onDestMove);
 
     function onMapClick(e) {
@@ -355,10 +401,10 @@
             destPlaced = true;
 
             socket.emit('setDestination', currentRoomId, destPosition);
-
-            // Recalculate distance
         }
-
+        else {
+            alert('Pour changer le point de RDV, veuillez glisser le point actuel.');
+        }
     }
 
     function onDestMove(e) {
@@ -366,8 +412,6 @@
         dest.setLatLng(destPosition);
 
         socket.emit('setDestination', currentRoomId, destPosition);
-
-        // Recalculate distance
     }
 
     // END DESTINATION POINT
@@ -389,7 +433,6 @@
 
     function timeBetweenTwoPos(pos1, pos2) {
         if (pos1.lat !== 0 && pos2.lat !== 0) {
-            // Radius of the earth in km
             let R = 6371;
             let dLat = deg2rad(pos2.lat - pos1.lat);
             let dLon = deg2rad(pos2.lng - pos1.lng);

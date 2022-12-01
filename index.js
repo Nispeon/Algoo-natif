@@ -26,8 +26,6 @@ var userList = [];
 userList[0] = [];
 
 io.on('connection', (socket) => {
-    console.log('New user connected');
-
     socket.on('getRooms', () => {
         io.emit('roomListUpdate', roomList);
     });
@@ -51,14 +49,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('sendMessage', (roomId, username, msg, color) => {
-        console.log('Room: ' + roomId + 'User: ' + username + ' Message: ' + msg + ' Color: ' + color);
         io.emit('dispatchMessage', roomId, username, msg, color);
     });
 
     socket.on('joinRoom', (roomId, username, color, location) => {
-        console.log('Room: ' + roomId + ' User: ' + username);
-
-        // check if roomId is in roomIds
         if (roomIds.includes(roomId)) {
             userList[roomId].push({
                 username: username,
@@ -68,7 +62,6 @@ io.on('connection', (socket) => {
                 time: null,
                 distance: null,
             });
-            console.log(userList);
         }
 
         // these variables are only a fallback when someone joins an undefined room
@@ -79,11 +72,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('leaveRoom', (roomId, username) => {
-        console.log('User: ' + username + ' left room: ' + roomId);
         if (roomIds.includes(roomId)) {
             userList[roomId] = userList[roomId].filter(user => user.username !== username);
         }
-        console.log(userList);
         io.emit('dispatchLeaveRoom', roomId, username, userList[roomId]);
     });
 
@@ -98,24 +89,21 @@ io.on('connection', (socket) => {
                 userList[roomId] = userList[roomId].filter(u => u.username !== user.username);
             }
         });
-        io.emit('updateUsers', roomId, userList[roomId]);
+        io.emit('updateUsers', roomId, userList[roomId], roomList[roomId]);
     })
 
     socket.on('setDestination', (roomId, destination) => {
-        console.log('Room: ' + roomId + ' Destination: ' + destination);
         roomList[roomId].destination = destination;
         io.emit('updateDestination', roomId, destination);
     });
 
     socket.on('selectRestaurant', (roomId, username, restaurant) => {
-        console.log('Room: ' + roomId + ' User: ' + username + ' Restaurant: ' + restaurant);
-        // add restaurant to user
         userList[roomId].forEach(user => {
             if (user.username === username) {
                 user.restaurant = restaurant;
             }
         });
-        io.emit('updateUsers', roomId, userList[roomId]);
+        io.emit('updateUsers', roomId, userList[roomId], roomList[roomId]);
     });
 
     socket.on('updateUsersTimeDistance', (roomId, usersTimeDistance) => {
