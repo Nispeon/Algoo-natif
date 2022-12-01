@@ -13,33 +13,6 @@ app.get('/room', (req, res) => {
     res.sendFile(__dirname + '/templates/room.html');
 });
 
-const restaurants = [
-    {
-        id: 1,
-        name: 'Restaurant 1',
-    },
-    {
-        id: 2,
-        name: 'Restaurant 2',
-    },
-    {
-        id: 3,
-        name: 'Restaurant 3',
-    },
-    {
-        id: 4,
-        name: 'Restaurant 4',
-    },
-    {
-        id: 5,
-        name: 'Restaurant 5',
-    },
-    {
-        id: 6,
-        name: 'Restaurant 6',
-    },
-];
-
 var roomList = [];
 roomList[0] = {
     id: 0,
@@ -52,7 +25,6 @@ var id = 1;
 var userList = [];
 userList[0] = [];
 
-
 io.on('connection', (socket) => {
     console.log('New user connected');
 
@@ -60,13 +32,15 @@ io.on('connection', (socket) => {
         io.emit('roomListUpdate', roomList);
     });
 
-    io.emit('credentials', btoa(`${process.env.OPEN_STREET_MAP_USERNAME}:${process.env.OPEN_STREET_MAP_PASSWORD}`));
-
     socket.on('createRoom', (room) => {
         let newRoom = {
             id: id,
             name: room.name,
             arrTime: room.arrTime,
+            destination: {
+                lat: null,
+                lng: null,
+            }
         }
 
         roomIds.push(id.toString());
@@ -81,12 +55,19 @@ io.on('connection', (socket) => {
         io.emit('dispatchMessage', roomId, username, msg, color);
     });
 
-    socket.on('joinRoom', (roomId, username, color) => {
+    socket.on('joinRoom', (roomId, username, color, location) => {
         console.log('Room: ' + roomId + ' User: ' + username);
 
         // check if roomId is in roomIds
         if (roomIds.includes(roomId)) {
-            userList[roomId].push({username: username, color: color, ping: Date.now()});
+            userList[roomId].push({
+                username: username,
+                color: color,
+                ping: Date.now(),
+                location: location,
+                time: null,
+                distance: null,
+            });
             console.log(userList);
         }
 
@@ -106,18 +87,46 @@ io.on('connection', (socket) => {
         io.emit('dispatchLeaveRoom', roomId, username, userList[roomId]);
     });
 
-    socket.on('ping', (roomId, username) => {
+    socket.on('ping', (roomId, username, location) => {
         userList[roomId].forEach(user => {
             if (user.username === username) {
                 user.ping = Date.now();
+                user.location = location;
             }
             // if last ping was more than 5 seconds ago, remove user from room
             if (Date.now() - user.ping > 6000) {
                 userList[roomId] = userList[roomId].filter(u => u.username !== user.username);
             }
         });
-        console.log(userList[roomId]);
         io.emit('updateUsers', roomId, userList[roomId]);
+    })
+
+    socket.on('setDestination', (roomId, destination) => {
+        console.log('Room: ' + roomId + ' Destination: ' + destination);
+        roomList[roomId].destination = destination;
+        io.emit('updateDestination', roomId, destination);
+    });
+
+    socket.on('selectRestaurant', (roomId, username, restaurant) => {
+        console.log('Room: ' + roomId + ' User: ' + username + ' Restaurant: ' + restaurant);
+        // add restaurant to user
+        userList[roomId].forEach(user => {
+            if (user.username === username) {
+                user.restaurant = restaurant;
+            }
+        });
+        io.emit('updateUsers', roomId, userList[roomId]);
+    });
+
+    socket.on('updateUsersTimeDistance', (roomId, usersTimeDistance) => {
+        usersTimeDistance.forEach(user => {
+            userList[roomId].forEach(u => {
+                if (u.username === user.username) {
+                    u.time = user.time;
+                    u.distance = user.distance;
+                }
+            });
+        });
     })
 });
 

@@ -10,35 +10,38 @@
 </head>
 
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="container-fluid">
-        <div class="collapse navbar-collapse" id="navbarNavDropdown">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link active" aria-current="page" href="/">Home</a>
-                </li>
-            </ul>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNavDropdown">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="/">Home</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-    </div>
-</nav>
-<header class="bg-dark py-5">
-    <div class="container px-4 px-lg-5 my-5">
-        <div class="text-center text-white">
-            <h1 class="display-4 fw-bolder lead">Room :</h1>
-            <p class="lead fw-normal text-white-50 mb-0" id="rdv">Rendez-vous à :</p>
+    </nav>
+    <header class="bg-dark py-5">
+        <div class="container px-4 px-lg-5 my-5">
+            <div class="text-center text-white">
+                <h1 class="display-4 fw-bolder lead">Room :</h1>
+                <p class="lead fw-normal text-white-50 mb-0" id="rdv">Rendez-vous à :</p>
+            </div>
         </div>
-    </div>
-</header>
+    </header>
 
-<p>Users :</p>
-<ul id="users"></ul>
+    <p>Restaurants :</p>
+    <ul id="restaurants"></ul>
 
-<p>Messages :</p>
-<ul id="messages"></ul>
+    <p>Users :</p>
+    <ul id="users"></ul>
 
-<form id="form" action="">
-    <input id="message" type="text" autocomplete="off"/><button>Envoyer</button>
-</form>
+    <p>Messages :</p>
+    <ul id="messages"></ul>
+
+    <form id="form" action="">
+        <input id="message" type="text" autocomplete="off" /><button>Envoyer</button>
+    </form>
 
     <div id="map" style="width: 425px; height: 350px; cursor: pointer;"></div>
 </body>
@@ -49,6 +52,12 @@
     // get parameter id from url
     const urlParams = new URLSearchParams(window.location.search);
     const currentRoomId = urlParams.get('id');
+
+    if (!currentRoomId) {
+        window.location.href = '/';
+    }
+
+    let userList = [];
 
     // ask username on load and store in const
     let name = prompt('What is your username?');
@@ -61,16 +70,65 @@
     // generate random color hex code that cannot be white or black
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
-    console.log(color)
-    // emit event to let users know when someone joins
-    socket.emit('joinRoom', currentRoomId, username, color);
+    const restaurants = [
+        {
+            name: 'Okiko',
+            location: {
+                lat: 48.9008,
+                lng: 2.2116
+            }
+        },
+        {
+            name: 'Le Bistrot de la Gare',
+            location: {
+                lat: 48.9044,
+                lng: 2.2425
+            }
+        },
+        {
+            name: 'Aubrac',
+            location: {
+                lat: 48.9064,
+                lng: 2.2525
+            }
+        },
+        {
+            name: 'McDonalds',
+            location: {
+                lat: 48.9144,
+                lng: 2.2488
+            }
+        }
 
-    if (!currentRoomId) {
-        window.location.href = '/';
+    ]
+
+    for (let i = 0; i < restaurants.length; i++) {
+        // add restaurant to ul with id restaurants
+        const restaurant = restaurants[i];
+        const li = document.createElement('li');
+        li.innerHTML = `${restaurant.name} <button onclick="selectRestaurant(${i})"> Go </button>`;
+        document.getElementById('restaurants').appendChild(li);
     }
 
+    function selectRestaurant(restaurantIndex) {
+        let restaurant = restaurants[restaurantIndex];
+        socket.emit('selectRestaurant', currentRoomId, username, restaurant);
+    }
+
+    let currentLocation = {
+        lat: 0,
+        lng: 0
+    };
+
+    navigator.geolocation.getCurrentPosition(function (position) {
+        currentLocation.lat = position.coords.latitude;
+        currentLocation.lng = position.coords.longitude;
+    });
+
+    socket.emit('joinRoom', currentRoomId, username, color, currentLocation);
+
     function uuidv4() {
-        return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
             (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
         );
     }
@@ -95,7 +153,7 @@
         document.getElementById('messages').appendChild(li);
     }
 
-    socket.on('dispatchMessage', function(roomId, username, msg, color) {
+    socket.on('dispatchMessage', function (roomId, username, msg, color) {
         if (roomId === currentRoomId) {
             addMessage(`<strong>${username}</strong>: ${msg}`, color);
         }
@@ -108,17 +166,18 @@
 
     let isCorrectRoom = false;
 
-    const userList = document.getElementById('users');
+    const userListElement = document.getElementById('users');
 
     function setUsers(users) {
-        userList.innerHTML = '';
+        userListElement.innerHTML = '';
+        userList = users;
         users.forEach(user => {
             let li = document.createElement('li');
             li.innerHTML = `<span style="color: ${user.color}">${user.username}</span>`;
-            userList.appendChild(li);
+            userListElement.appendChild(li);
         });
     }
-    socket.on('dispatchJoinRoom', function(roomId, username, color, roomIds, roomInfo, users) {
+    socket.on('dispatchJoinRoom', function (roomId, username, color, roomIds, roomInfo, users) {
         if (roomInfo !== null && users !== null) {
             setHeader(roomInfo);
 
@@ -133,129 +192,155 @@
                     isCorrectRoom = true;
                 }
             }
+
+            if (roomInfo.destination) {
+                dest.setLatLng(roomInfo.destination);
+                dest.setOpacity(1)
+                destPlaced = true;
+            }
         }
         if (!isCorrectRoom) {
             window.location.href = '/';
         }
     });
 
-    socket.on('updateUsers', function(roomId, users) {
+    socket.on('updateUsers', function (roomId, users) {
         if (roomId === currentRoomId) {
+            clearMap();
             setUsers(users);
+            drawUsers();
+
+            userList.forEach(user => {
+                if (user.username === username) {
+                    console.log(user)
+                    console.log(user.time, user.distance)
+                }
+            });
         }
     });
 
     function ping() {
-        socket.emit('ping', currentRoomId, username);
-        console.log('ping');
+        navigator.geolocation.getCurrentPosition(function (position) {
+            currentLocation.lat = position.coords.latitude;
+            currentLocation.lng = position.coords.longitude;
+        });
+
+        clearMap();
+        drawUsers();
+
+        socket.emit('ping', currentRoomId, username, currentLocation);
     }
     setInterval(ping, 5000);
-</script>
-<script>
+
+    let userMarkers = [];
+    let restoMarkers = [];
+    let lines = [];
+
+    function drawUsers() {
+        let usersTimeDistance = [];
+        userList.forEach(user => {
+            let hex = user.color.substring(1);
+            let initial = user.username.substring(0, 1).toLowerCase();
+            let userLocation = user.location;
+            let userIcon = new Icon({ iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png` });
+            let totalDistance = 0;
+            let totalTime = 0;
+
+            // User marker
+            userMarkers.push(L.marker(userLocation, { icon: userIcon }))
+            userMarkers[userMarkers.length - 1].addTo(map);
+
+            if (dest.getLatLng().lng !== 0) {
+                if (user.restaurant) {
+                    let userRestoLoc = user.restaurant.location;
+
+                    // Resto marker
+                    restoMarkers.push(L.marker(userRestoLoc, { icon: restoIcon }))
+                    restoMarkers[restoMarkers.length - 1].addTo(map);
+
+                    // Line between user and resto
+                    drawALine(userLocation, userRestoLoc, user.color);
+                    let userToResto = timeBetweenTwoPos(userLocation, userRestoLoc)
+                    totalDistance += userToResto.distance;
+                    totalTime += userToResto.time;
+
+                    // Line between resto and destination
+                    drawALine(userRestoLoc, dest.getLatLng(), user.color)
+                    let restoToDest = timeBetweenTwoPos(userRestoLoc, dest.getLatLng())
+                    totalDistance += restoToDest.distance;
+                    totalTime += restoToDest.time;
+                }
+                else {
+                    // Line between user and destination
+                    drawALine(userLocation, dest.getLatLng(), user.color)
+                    let userToDest = timeBetweenTwoPos(userLocation, dest.getLatLng())
+                    totalDistance += userToDest.distance;
+                    totalTime += userToDest.time;
+                }
+            }
+
+            // Distance in km
+            totalDistance = totalDistance.toFixed(2);
+
+            totalTime = totalTime.toFixed(2);
+            let rhours = Math.floor(totalTime);
+            let minutes = (totalTime - rhours) * 60;
+            let rminutes = Math.round(minutes);
+
+            // Time in hours and minutes
+            let time = `${rhours}h${rminutes}`;
+
+            usersTimeDistance.push({ username: user.username, time: time, distance: totalDistance });
+        });
+        socket.emit('updateUsersTimeDistance', currentRoomId, usersTimeDistance);
+    }
+
+    function clearMap() {
+        userMarkers.forEach(marker => {
+            map.removeLayer(marker);
+        });
+        restoMarkers.forEach(marker => {
+            map.removeLayer(marker);
+        });
+        lines.forEach(line => {
+            map.removeLayer(line);
+        });
+
+        userMarkers = [];
+        restoMarkers = [];
+        lines = [];
+    }
+
     // OSM MAP
 
-    // TO CHANGE WITH USER HEX AND USER FIRST LETTER
-    var users = [
-        {
-            hex: 'FF0000',
-            firstLetter: 'a',
-            localisation: {
-                lat: 48.8869,
-                lng: 2.2006
-            },
-            restoId: 2
-        },
-        {
-            hex: '00FF00',
-            firstLetter: 'c',
-            localisation: {
-                lat: 48.8783,
-                lng: 2.2346
-            }
-        }
-    ]
-
-    navigator.geolocation.getCurrentPosition(function (position) {
-        user.localisation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-        }
-    });
-
-    var restaurants = [
-        {
-            localisation: {
-                lat: 48.9008,
-                lng: 2.2116
-            }
-        },
-        {
-            localisation: {
-                lat: 48.9044,
-                lng: 2.2425
-            }
-        }
-    ]
-
-    // MAP
-    var map = L.map('map').setView([48.89, 2.22], 13);
+    let map = L.map('map').setView([48.89, 2.22], 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    // LOOP TO CREATE USER MARKERS
-    var UserIcon = L.Icon.extend({
+    // Set icon size
+    let Icon = L.Icon.extend({
         options: {
             iconSize: [40, 40],
             iconAnchor: [20, 29]
         }
     });
 
-    for (let i = 0; i < users.length; i++) {
-        var user = users[i];
-        var userHex = user.hex;
-        var userLetter = user.firstLetter;
-        var userLoc = user.localisation;
-
-        var userIcon = new UserIcon({
-            iconUrl: `https://img.icons8.com/material/24/${userHex}/circled-${userLetter}.png`
-        })
-
-        L.marker(userLoc, { icon: userIcon }).addTo(map);
-    }
-
-    // LOOP TO CREATE RESTAURANT MARKERS
-    var RestoIcon = L.Icon.extend({
-        options: {
-            iconSize: [40, 40],
-            iconAnchor: [20, 29]
-        }
-    });
-    var restoIcon = new UserIcon({
+    // Set Resto icon
+    let restoIcon = new Icon({
         iconUrl: 'https://img.icons8.com/fluency/48/null/restaurant-.png'
     })
-
-    for (let i = 0; i < restaurants.length; i++) {
-        L.marker(restaurants[i], { icon: restoIcon }).addTo(map);
-    }
-
-    // DESTINATION POINT
-
-    // Destination icon
-    var DestIcon = L.Icon.extend({
-        options: {
-            iconSize: [40, 40],
-            iconAnchor: [20, 29]
-        }
-    });
-    var destIcon = new DestIcon({
+    // Set Destination icon
+    let destIcon = new Icon({
         iconUrl: 'https://img.icons8.com/ios-glyphs/30/FF0000/place-marker.png'
     })
 
+    // DESTINATION POINT
+
     // Destination marker
-    var dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
-    var destPlaced = false;
+    let dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
+    let destPlaced = false;
 
     // When click to set destination
     map.on('click', onMapClick);
@@ -263,28 +348,78 @@
     dest.on('dragend', onDestMove);
 
     function onMapClick(e) {
-        if (destPlaced == false) {
+        if (destPlaced === false) {
             let destPosition = e.latlng;
             dest.setLatLng(destPosition);
             dest.setOpacity(1)
             destPlaced = true;
 
-            console.log(destPosition);
+            socket.emit('setDestination', currentRoomId, destPosition);
+
             // Recalculate distance
         }
-        else {
-            console.log("Marker already placed")
-        }
+
     }
 
     function onDestMove(e) {
-        var destPosition = e.target.getLatLng();
+        let destPosition = e.target.getLatLng();
+        dest.setLatLng(destPosition);
 
-        console.log(destPosition);
+        socket.emit('setDestination', currentRoomId, destPosition);
+
         // Recalculate distance
     }
 
     // END DESTINATION POINT
+
+    function drawALine(pos1, pos2, color) {
+        if (pos1.lat && pos2.lat) {
+            lines.push(L.polyline([pos1, pos2], { color: color }));
+            lines[lines.length - 1].addTo(map);
+        }
+    }
+
+    socket.on('updateDestination', function (roomId, destPosition) {
+        if (roomId === currentRoomId) {
+            dest.setLatLng(destPosition);
+            clearMap();
+            drawUsers();
+        }
+    });
+
+    function timeBetweenTwoPos(pos1, pos2) {
+        if (pos1.lat !== 0 && pos2.lat !== 0) {
+            // Radius of the earth in km
+            let R = 6371;
+            let dLat = deg2rad(pos2.lat - pos1.lat);
+            let dLon = deg2rad(pos2.lng - pos1.lng);
+            let a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(pos1.lat)) * Math.cos(deg2rad(pos2.lat)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            // Distance in km
+            let d = R * c;
+
+            // Time for 5mk/h
+            let t = d / 5;
+
+            return {
+                distance: d,
+                time: t
+            };
+        }
+
+        return {
+            distance: 0,
+            time: 0
+        };
+    }
+
+    function deg2rad(deg) {
+        return deg * (Math.PI / 180)
+    }
+
 </script>
 
 </html>
