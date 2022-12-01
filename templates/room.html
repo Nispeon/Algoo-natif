@@ -5,7 +5,7 @@
     <title>Room</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"
         integrity="sha256-kLaT2GOSpHechhsozzB+flnD+zUyjE2LlfWPgU04xyI=" crossorigin="" />
-        <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"
         integrity="sha256-WBkoXOwTeyKclOHuWtc+i2uENFpDZ9YPdf5Hf+D7ewM=" crossorigin=""></script>
 </head>
 
@@ -178,6 +178,13 @@
                     isCorrectRoom = true;
                 }
             }
+
+            console.log(roomInfo.destination)
+            if (roomInfo.destination) {
+                dest.setLatLng(roomInfo.destination);
+                dest.setOpacity(1)
+                destPlaced = true;
+            }
         }
         if (!isCorrectRoom) {
             window.location.href = '/';
@@ -186,7 +193,9 @@
 
     socket.on('updateUsers', function (roomId, users) {
         if (roomId === currentRoomId) {
+            clearMap();
             setUsers(users);
+            drawUsers();
         }
     });
 
@@ -196,45 +205,83 @@
             currentLocation.lng = position.coords.longitude;
         });
 
+        clearMap();
         drawUsers();
 
         socket.emit('ping', currentRoomId, username, currentLocation);
     }
     setInterval(ping, 5000);
 
-    const userMarkers = [];
-    const restoMarkers = [];
+    let userMarkers = [];
+    let restoMarkers = [];
+    let lines = [];
 
     function drawUsers() {
         userList.forEach(user => {
             let hex = user.color.substring(1);
-            let initial = user.username.substring(0, 1);
+            let initial = user.username.substring(0, 1).toLowerCase();
             let userLocation = user.location;
-            let userIcon = new Icon({iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png`});
-            let userRestoLoc = user.restaurant.location;
+            let userIcon = new Icon({ iconUrl: `https://img.icons8.com/material/24/${hex}/circled-${initial}.png` });
+            let totalDistance = 0;
+            let totalTime = 0;
 
             // User marker
-            userMarkers[user.username] = L.marker(userLocation, { icon: userIcon });
-            userMarkers[user.username].addTo(map);
+            userMarkers.push(L.marker(userLocation, { icon: userIcon }))
+            userMarkers[userMarkers.length - 1].addTo(map);
 
             if (dest) {
-                if (userResto) {
+                if (user.restaurant) {
+                    let userRestoLoc = user.restaurant.location;
+
                     // Resto marker
-                    restoMarkers[user.restaurant.name] = L.marker(userRestoLoc, { icon: restoIcon });
-                    restoMarkers[user.restaurant.name].addTo(map);
+                    restoMarkers.push(L.marker(userRestoLoc, { icon: restoIcon }))
+                    restoMarkers[restoMarkers.length - 1].addTo(map);
 
                     // Line between user and resto
                     drawALine(userLocation, userRestoLoc, user.color);
+                    let userToResto = timeBetweenTwoPos(userLocation, userRestoLoc)
+                    totalDistance += userToResto.distance;
+                    totalTime += userToResto.time;
 
                     // Line between resto and destination
                     drawALine(userRestoLoc, dest.getLatLng(), user.color)
+                    let restoToDest = timeBetweenTwoPos(userRestoLoc, dest.getLatLng())
+                    totalDistance += restoToDest.distance;
+                    totalTime += restoToDest.time;
                 }
                 else {
                     // Line between user and destination
                     drawALine(userLocation, dest.getLatLng(), user.color)
+                    let userToDest = timeBetweenTwoPos(userLocation, dest.getLatLng())
+                    totalDistance += userToDest.distance;
+                    totalTime += userToDest.time;
                 }
             }
+
+            totalDistance = totalDistance.toFixed(2);
+            totalTime = totalTime.toFixed(2);
+            rhours = Math.floor(totalTime);
+            minutes = (totalTime - rhours) * 60;
+            rminutes = Math.round(minutes);
+
+            console.log("Distance à parcourir : " + totalDistance + "km", "Temps de parcourt : " + totalTime + " h = " + rhours + " h " + rminutes + " min");
         })
+    }
+
+    function clearMap() {
+        userMarkers.forEach(marker => {
+            map.removeLayer(marker);
+        });
+        restoMarkers.forEach(marker => {
+            map.removeLayer(marker);
+        });
+        lines.forEach(line => {
+            map.removeLayer(line);
+        });
+
+        userMarkers = [];
+        restoMarkers = [];
+        lines = [];
     }
 
     // OSM MAP
@@ -280,21 +327,19 @@
             dest.setOpacity(1)
             destPlaced = true;
 
-            console.log(destPosition);
-
             socket.emit('setDestination', currentRoomId, destPosition);
+
             // Recalculate distance
         }
-        else {
-            alert('Pour changer le point de RDV, veuillez glisser le point actuel.');
-            console.log("Marker already placed")
-        }
+
     }
 
     function onDestMove(e) {
         let destPosition = e.target.getLatLng();
+        dest.setLatLng(destPosition);
 
         socket.emit('setDestination', currentRoomId, destPosition);
+
         // Recalculate distance
     }
 
@@ -302,17 +347,46 @@
 
     function drawALine(pos1, pos2, color) {
         if (pos1.lat && pos2.lat) {
-            L.polyline([pos1, pos2], { color: color }).addTo(map);
+            lines.push(L.polyline([pos1, pos2], { color: color }));
+            lines[lines.length - 1].addTo(map);
         }
     }
 
-    socket.on('updateDestination', function(roomId, destPosition) {
+    socket.on('updateDestination', function (roomId, destPosition) {
         if (roomId === currentRoomId) {
             dest.setLatLng(destPosition);
-            dest.setOpacity(1);
-            destPlaced = true;
+            clearMap();
+            drawUsers();
         }
     });
+
+    function timeBetweenTwoPos(pos1, pos2) {
+        if (pos1.lat && pos2.lat) {
+            // Radius of the earth in km
+            let R = 6371;
+            let dLat = deg2rad(pos2.lat - pos1.lat);
+            let dLon = deg2rad(pos2.lng - pos1.lng);
+            let a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(pos1.lat)) * Math.cos(deg2rad(pos2.lat)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            // Distance in km
+            let d = R * c;
+
+            // Time for 5mk/h
+            let t = d / 5;
+
+            return {
+                distance: d,
+                time: t
+            };
+        }
+    }
+
+    function deg2rad(deg) {
+        return deg * (Math.PI / 180)
+    }
 
 </script>
 

@@ -25,7 +25,6 @@ var id = 1;
 var userList = [];
 userList[0] = [];
 
-
 io.on('connection', (socket) => {
     console.log('New user connected');
 
@@ -33,13 +32,15 @@ io.on('connection', (socket) => {
         io.emit('roomListUpdate', roomList);
     });
 
-    io.emit('credentials', btoa(`${process.env.OPEN_STREET_MAP_USERNAME}:${process.env.OPEN_STREET_MAP_PASSWORD}`));
-
     socket.on('createRoom', (room) => {
         let newRoom = {
             id: id,
             name: room.name,
             arrTime: room.arrTime,
+            destination: {
+                lat: null,
+                lng: null,
+            }
         }
 
         roomIds.push(id.toString());
@@ -100,6 +101,7 @@ io.on('connection', (socket) => {
 
     socket.on('setDestination', (roomId, destination) => {
         console.log('Room: ' + roomId + ' Destination: ' + destination);
+        roomList[roomId].destination = destination;
         io.emit('updateDestination', roomId, destination);
     });
 
