@@ -86,6 +86,7 @@
 
     const username = `${name}_${uuidv4().substring(0, 4)}`;
 
+    // generate random color hex code that cannot be white or black
     const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
     const restaurants = [
@@ -121,6 +122,7 @@
     ]
 
     for (let i = 0; i < restaurants.length; i++) {
+        // add restaurant to ul with id restaurants
         const restaurant = restaurants[i];
         const li = document.createElement('li');
         li.classList.add('list-group-item');
@@ -243,7 +245,7 @@
                 }
             }
 
-            if (roomInfo.destination) {
+            if (roomInfo.destination.lat !== null && roomInfo.destination.lng !== null) {
                 dest.setLatLng(roomInfo.destination);
                 dest.setOpacity(1)
                 destPlaced = true;
@@ -327,15 +329,18 @@
 
             totalTime = totalTime.toFixed(2);
             let rhours = Math.floor(totalTime);
+            // add leading zero if hours is less than 10
             if (rhours < 10) {
                 rhours = '0' + rhours;
             }
             let minutes = (totalTime - rhours) * 60;
             let rminutes = Math.round(minutes);
+            // add leading zero if minutes is less than 10
             if (rminutes < 10) {
                 rminutes = '0' + rminutes;
             }
 
+            // Time in hours and minutes
             let time = `${rhours}h${rminutes}`;
 
             usersTimeDistance.push({ username: user.username, time: time, distance: totalDistance });
@@ -390,7 +395,9 @@
     let dest = L.marker([0, 0], { opacity: 0, icon: destIcon, draggable: 'true' }).addTo(map);
     let destPlaced = false;
 
+    // When click to set destination
     map.on('click', onMapClick);
+    // When destination is moved
     dest.on('dragend', onDestMove);
 
     function onMapClick(e) {
@@ -401,6 +408,8 @@
             destPlaced = true;
 
             socket.emit('setDestination', currentRoomId, destPosition);
+
+            // Recalculate distance
         }
         else {
             alert('Pour changer le point de RDV, veuillez glisser le point actuel.');
@@ -412,6 +421,8 @@
         dest.setLatLng(destPosition);
 
         socket.emit('setDestination', currentRoomId, destPosition);
+
+        // Recalculate distance
     }
 
     // END DESTINATION POINT
@@ -433,6 +444,7 @@
 
     function timeBetweenTwoPos(pos1, pos2) {
         if (pos1.lat !== 0 && pos2.lat !== 0) {
+            // Radius of the earth in km
             let R = 6371;
             let dLat = deg2rad(pos2.lat - pos1.lat);
             let dLon = deg2rad(pos2.lng - pos1.lng);
